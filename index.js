@@ -12,8 +12,14 @@ const rlp = readline.createInterface({
 
 (async () => {
   const oracle = new OracleCloud(async page => {
-    await page.type('#userid', process.env.ORACLE_USER);
-    await page.type('#password', process.env.ORACLE_PASS);
+    var {ORACLE_USER, ORACLE_PASS} = process.env;
+    if (!ORACLE_USER) ORACLE_USER = await rlp.questionAsync('Email: ');
+    if (!ORACLE_PASS) ORACLE_PASS = await rlp.questionAsync('Password: ');
+    rlp.output.write("\x1B[A\x1B[K\n"); // erase the password
+    rlp.history = rlp.history.slice(1);
+
+    await page.type('#userid', ORACLE_USER);
+    await page.type('#password', ORACLE_PASS);
     await page.click('#btnActive');
   });
 
@@ -38,6 +44,16 @@ const rlp = readline.createInterface({
       console.log('===============================================')
       console.log('=-=-=-=-=-=-=', screen.title, '=-=-=-=-=-=-=')
       console.log();
+
+      if (screen.note) {
+        const {type, lines, hints} = screen.note;
+        console.log('==>', type);
+        lines.forEach(line =>
+          console.log('   ', line));
+        hints.forEach(line =>
+          console.log('-->', line));
+        console.log();
+      }
 
       switch (screen.type) {
         case 'overview':
@@ -138,17 +154,7 @@ const rlp = readline.createInterface({
           });
           console.log();
 
-          if (screen.note) {
-            const {type, lines, hints} = screen.note;
-            console.log('==>', type);
-            lines.forEach(line =>
-              console.log('   ', line));
-            hints.forEach(line =>
-              console.log('-->', line));
-            console.log();
-          }
-
-          var answer = await rlp.questionAsync('==> [#/cancel/save/kill] ');
+          var answer = await rlp.questionAsync('==> [#/cancel/save] ');
           const idx = parseInt(answer);
           if (answer[0] === 'c') {
             console.log('Cancelling');
@@ -156,9 +162,6 @@ const rlp = readline.createInterface({
           } else if (answer[0] === 's') {
             console.log('Saving');
             await screen.saveAndClose();
-          } else if (answer[0] === 'k') {
-            console.log('Killing');
-            throw new Error('Killed on command');
 
           } else if (idx > 0) {
             const field = screen.fields[idx-1];
