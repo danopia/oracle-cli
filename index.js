@@ -41,8 +41,8 @@ const rlp = readline.createInterface({
       console.log();
       console.log();
       console.log();
-      console.log('===============================================')
-      console.log('=-=-=-=-=-=-=', screen.title, '=-=-=-=-=-=-=')
+      console.log(new Array(29+screen.title.length).join('='));
+      console.log('=-=-=-=-=-=-=', screen.title, '=-=-=-=-=-=-=');
       console.log();
 
       if (screen.note) {
@@ -99,7 +99,7 @@ const rlp = readline.createInterface({
               inFlow = false;
               break;
             default:
-              const idxA = parseInt(answer);
+              var idxA = parseInt(answer);
               const happyItem = screen.items[idxA-1];
               if (idxA > 0 && happyItem) {
                 console.log('Okay, selecting', happyItem.category, happyItem.date, happyItem.amount);
@@ -112,56 +112,198 @@ const rlp = readline.createInterface({
           screen.fields.forEach((field, idx) => {
             var suffix = '';
             if (field.isRequired) {
-              suffix += ' required';
+              if (field.type === 'select' && (!field.selected || !field.selected.text)) {
+                suffix += ' required!';
+              } else if (field.type !== 'select' && !field.value) {
+                suffix += ' required!';
+              }
             }
-            if (field.hasErro) {
-              suffix += ' error!';
+            var space = '  ';
+            if (field.hasError) {
+              space = '!!';
             }
 
             switch (field.type) {
               case 'text':
               case 'textarea':
-                if (field.value) {
-                  console.log('  ', (idx+1)+")\t", field.label, ":\t[", field.value, ']');
-                } else {
-                  console.log('  ', (idx+1)+")\t", field.label, ":\t(empty)");
-                }
-                break;
               case 'select':
-                const {selected} = field;
-                if (selected && selected.text) {
-                  console.log('  ', (idx+1)+")\t", field.label, ":\t[", selected.text, ']');
+              case 'lookup':
+                if (field.value) {
+                  console.log(space, (idx+1)+")\t", field.label, ":\t[", field.value, ']', suffix);
                 } else {
-                  console.log('  ', (idx+1)+")\t", field.label, ":\t(no selection) ");
+                  console.log(space, (idx+1)+")\t", field.label, ":\t(empty)", suffix);
                 }
                 break;
               case 'flag':
-                console.log('  ', (idx+1)+")\t", field.label, ":\t", field.value ? 'yes' : 'no');
+                console.log(space, (idx+1)+")\t", field.label, ":\t", field.value ? 'yes' : 'no', suffix);
+                break;
+              case 'label':
+                console.log(space, (idx+1)+")\t", field.label, ":\t", field.value, suffix);
                 break;
               case 'attachments':
                 var latest = '(none)';
                 if (field.value) {
                   latest = 'most recent: ' + field.value;
                 }
-                console.log('  ', (idx+1)+")\t", field.label, ":\t", latest);
-                break;
-              case 'lookup':
-                console.log('  ', (idx+1)+")\t", field.label, ":\t", 'lookup:', '[', field.value, ']');
+                console.log(space, (idx+1)+")\t", field.label, ":\t", latest, suffix);
                 break;
               default:
-                console.log('  ', (idx+1)+")\t", field.label, ":\t", field.type);
+                console.log(space, (idx+1)+")\t", field.label, ":\t", field.type, suffix);
             }
           });
           console.log();
 
           var answer = await rlp.questionAsync('==> [#/cancel/save] ');
-          const idx = parseInt(answer);
+          var idx = parseInt(answer);
+          const field = screen.fields[idx-1];
           if (answer[0] === 'c') {
             console.log('Cancelling');
             await screen.cancel();
           } else if (answer[0] === 's') {
             console.log('Saving');
             await screen.saveAndClose();
+
+          } else if (idx > 0 && field) {
+            switch (field.type) {
+              case 'text':
+                const newVal = await rlp.questionAsync(`Enter new ${field.label}: `);
+                await field.setValue(newVal);
+                break;
+              case 'textarea':
+                console.log(`Enter new multiline ${field.label}. When done, enter a blank line.`);
+                var newText = '';
+                while (true) {
+                  const newLine = await rlp.questionAsync('');
+                  if (newLine) {
+                    newText += newLine + '\n';
+                  } else {
+                    break;
+                  }
+                }
+                await field.setValue(newText.trim());
+                break;
+              case 'flag':
+                console.log('Toggling', field.label);
+                await field.toggle();
+                break;
+              case 'lookup':
+              case 'attachments':
+              case 'label':
+                if (field.openPopup) {
+                  console.log('Activating for', field.label);
+                  await field.openPopup();
+                } else {
+                  console.log('I didnt find an action for', field.label, ':(');
+                }
+                break;
+              case 'select':
+                console.log();
+                console.log('Options for', field.label, ':');
+                field.options.forEach((opt, optIdx) => {
+                  console.log('  ', (optIdx+1)+")\t", opt.text);
+                });
+                const newOptIdx = await rlp.questionAsync(`Option number [#/cancel] `);
+                const optIdx = parseInt(newOptIdx);
+                const option = field.options[optIdx-1];
+                if (optIdx > 0 && option) {
+                  console.log('Selecting', option.text)
+                  await field.selectOption(option);
+                }
+                break;
+              default:
+                console.log('ERROR: I do not understand', field.type, 'fields');
+            }
+          }
+          break;
+
+        case 'edit-master-form':
+          screen.fields.forEach((field, idx) => {
+            var suffix = '';
+            if (field.isRequired && !field.value) {
+              suffix += ' required!';
+            }
+            var space = '  ';
+            if (field.hasError) {
+              space = '!!';
+            }
+
+            switch (field.type) {
+              case 'text':
+              case 'textarea':
+                if (field.value) {
+                  console.log(space, (idx+1)+")\t", field.label, ":\t[", field.value, ']', suffix);
+                } else {
+                  console.log(space, (idx+1)+")\t", field.label, ":\t(empty)", suffix);
+                }
+                break;
+              case 'select':
+                const {selected} = field;
+                if (selected && selected.text) {
+                  console.log(space, (idx+1)+")\t", field.label, ":\t[", selected.text, ']', suffix);
+                } else {
+                  console.log(space, (idx+1)+")\t", field.label, ":\t(no selection) ", suffix);
+                }
+                break;
+              case 'flag':
+                console.log(space, (idx+1)+")\t", field.label, ":\t", field.value ? 'yes' : 'no', suffix);
+                break;
+              case 'label':
+                console.log(space, (idx+1)+")\t", field.label, ":\t", field.value, suffix);
+                break;
+              case 'attachments':
+                var latest = '(none)';
+                if (field.value) {
+                  latest = 'most recent: ' + field.value;
+                }
+                console.log(space, (idx+1)+")\t", field.label, ":\t", latest, suffix);
+                break;
+              case 'lookup':
+                console.log(space, (idx+1)+")\t", field.label, ":\t", 'lookup:', '[', field.value, ']', suffix);
+                break;
+              default:
+                console.log(space, (idx+1)+")\t", field.label, ":\t", field.type, suffix);
+            }
+          });
+          console.log();
+
+          screen.items.forEach((item, idx) => {
+            console.log('  ', 'i'+(idx+1)+")\t", item.category+"\t", item.date+"\t", item.amount+' '+item.currency+"\t", item.description+"\t", item.error);
+          });
+          if (!screen.items.length) {
+            console.log('No items yet.');
+          }
+          console.log();
+
+          var answer = await rlp.questionAsync('==> [#/i#/add/new/remove/close/save] ');
+          var idx = parseInt(answer);
+          if (answer[0] === 'c') {
+            console.log('Closing');
+            await screen.cancel();
+          } else if (answer[0] === 's') {
+            console.log('Saving');
+            await screen.save();
+          } else if (answer[0] === 'n') {
+            console.log('Creating new expense');
+            await screen.newExpense();
+          } else if (answer[0] === 'a') {
+            console.log('Adding existing expense');
+            await screen.addExisting();
+
+          } else if (answer[0] === 'i') {
+            var idxA = parseInt(answer.slice(1));
+            const happyItem = screen.items[idxA-1];
+            if (idxA > 0 && happyItem) {
+              console.log('Okay, selecting', happyItem.category, happyItem.date, happyItem.amount);
+              await happyItem.click();
+            }
+          } else if (answer[0] === 'r') {
+            const newIn = await rlp.questionAsync('==> Entry # to remove: ');
+            var idxAnswer = parseInt(newIn.replace('i', ''));
+            const poorItem = screen.items[idxAnswer-1];
+            if (idxAnswer > 0 && poorItem) {
+              console.log('Okay, removing', poorItem.category, poorItem.date, poorItem.amount);
+              await poorItem.remove();
+            }
 
           } else if (idx > 0) {
             const field = screen.fields[idx-1];
@@ -187,6 +329,7 @@ const rlp = readline.createInterface({
                 console.log('Toggling', field.label);
                 await field.toggle();
                 break;
+              case 'label':
               case 'lookup':
               case 'attachments':
                 console.log('Opening popup for', field.label);
@@ -229,7 +372,7 @@ const rlp = readline.createInterface({
           }
           const button = screen.buttons.find(b =>
             b.text.toLowerCase().startsWith(input.toLowerCase()));
-          if (button) {
+          if (input.length && button) {
             console.log('Clicking', button.text);
             await button.click();
           }
@@ -253,6 +396,41 @@ const rlp = readline.createInterface({
             await option.click();
           }
           break;
+
+        case 'apply-items':
+          console.log('Select an expense item to add to the report:');
+          if (screen.items.length === 0) {
+            console.log('No items to apply');
+          } else {
+            screen.items.forEach((item, idx) => {
+              console.log('  ', (idx+1)+")\t", item.category+"\t", item.location+"\t", item.date+"\t", item.amount+' '+item.currency+"\t", item.merchant);
+            });
+          }
+          console.log();
+
+          var answer = await rlp.questionAsync('==> [#/done] ');
+          switch (answer[0]) {
+            case 'd':
+              // there are 3 buttons:
+              // apply: adds the currently selected item (if any), leave dialog open
+              // ok: adds the currently selected item (if any), closes the dialog
+              // cancel: closes the dialog without adding anything more
+              //  - so 'ok' is really 'apply&cancel'
+              // items aren't actually saved to server until you cancel
+              screen.buttons
+                .find(x => x.text === 'Cancel')
+                .click();
+              break;
+            default:
+              var idxA = parseInt(answer);
+              const happyItem = screen.items[idxA-1];
+              if (idxA > 0 && happyItem) {
+                console.log('Okay, selecting', happyItem.category, happyItem.date, happyItem.amount);
+                await happyItem.apply();
+              }
+          }
+          break;
+
 
         default:
           console.log('Failed to scrape screen', screen);
