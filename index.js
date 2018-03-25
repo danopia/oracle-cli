@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const OracleCloud = require('./lib/oracle');
 const PayablesModule = require('./lib/pages/payables');
 
@@ -121,7 +123,11 @@ const rlp = readline.createInterface({
                 console.log('  ', (idx+1)+")\t", field.label, ":\t", field.value ? 'yes' : 'no');
                 break;
               case 'attachments':
-                console.log('  ', (idx+1)+")\t", field.label, ":\t", '(none)');
+                var latest = '(none)';
+                if (field.value) {
+                  latest = 'most recent: ' + field.value;
+                }
+                console.log('  ', (idx+1)+")\t", field.label, ":\t", latest);
                 break;
               case 'lookup':
                 console.log('  ', (idx+1)+")\t", field.label, ":\t", 'lookup:', '[', field.value, ']');
@@ -179,6 +185,7 @@ const rlp = readline.createInterface({
                 await field.toggle();
                 break;
               case 'lookup':
+              case 'attachments':
                 console.log('Opening popup for', field.label);
                 await field.openPopup();
                 break;

@@ -1,13 +1,22 @@
 {
   "name": "oracle-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Command-line interface into the Oracle Application Suite",
   "main": "index.js",
+  "bin": {
+    "oracle": "./index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Daniel Lamando",
   "license": "GPL-3.0",
+  "engines": {
+    "node": ">=7.8.0"
+  },
+  "files": [
+    "lib"
+  ],
   "dependencies": {
     "puppeteer": "^1.1.0",
     "readline-promise": "^1.0.3"
