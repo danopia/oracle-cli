@@ -38,11 +38,12 @@ const rlp = readline.createInterface({
     while (inFlow) {
 
       const screen = await payables.readScreen();
+      const screenTitle = screen.title || ('Untitled: '+screen.type);
       console.log();
       console.log();
       console.log();
-      console.log(new Array(29+screen.title.length).join('='));
-      console.log('=-=-=-=-=-=-=', screen.title, '=-=-=-=-=-=-=');
+      console.log(new Array(29+screenTitle.length).join('='));
+      console.log('=-=-=-=-=-=-=', screenTitle, '=-=-=-=-=-=-=');
       console.log();
 
       if (screen.note) {
